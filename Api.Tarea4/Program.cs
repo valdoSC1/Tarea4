@@ -196,14 +196,43 @@ app.MapPost("/contacto", async (ContactoUsuario Contacto, Tiusr4plMohisatarea4Co
             await context.ContactoUsuarios.AddAsync(Contacto);
             await context.SaveChangesAsync();
             var miContacto = await context.ContactoUsuarios.FirstAsync(c => c.Usuario == Contacto.Usuario);
+            return Results.NoContent(); //Podemos retornar un json pero falta el get
+        }
+    }
+    catch (System.Exception exc)
+    {
+        return Results.Json(new { codigo = 500, mensaje = exc.Message },
+            statusCode: StatusCodes.Status500InternalServerError);
+    }
+});
+
+app.MapPost("/correo", async (Correo Correo, Tiusr4plMohisatarea4Context context) =>
+{
+    try
+    {
+        ArrayList mensajeError = new ArrayList();
+        if (!MiniValidator.TryValidate(Correo, out var errors))
+        {
+            return Results.BadRequest(new { id = 400, mensaje = "Datos incorrectos", errores = errors });
+        }
+
+
+
+
+
+        if (await context.Correos.AnyAsync(c => c.CorreoElectronico == Correo.CorreoElectronico ))
+        {
+            return Results.Conflict(new { codigo = 409, mensaje = "Ya existe el contacto." });
+        }
+        else
+        {
+            await context.Correos.AddAsync(Correo);
+            await context.SaveChangesAsync();
+            var miContacto = await context.Correos.FirstAsync(c => c.CorreoElectronico == Correo.CorreoElectronico);
             return Results.Created($"contactos/{miContacto.ContactoId}", new
             {
                 mensaje = "Creación exitosa",
-                Nombre  = Contacto.Nombre,
-                Apellido = Contacto.PrimerApellido,
-                Facebook = Contacto.Facebook,
-                Instagram = Contacto.Instagram, 
-                Twitter = Contacto.Twitter
+                Correo = 
             });
         }
     }
