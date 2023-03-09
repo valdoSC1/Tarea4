@@ -202,6 +202,57 @@ app.MapPost("/contacto", async (ContactoUsuario Contacto, Tiusr4plMohisatarea4Co
     }
 });
 
+// Eliminar un contacto
+app.MapDelete("/contacto/{idContacto}", async (int idContacto, Tiusr4plMohisatarea4Context context) =>
+{
+    try
+    {
+        var contactoID = await context.ContactoUsuarios.FindAsync(idContacto);
+        if (contactoID == null)
+        {
+            return Results.NotFound(new { codigo = 404, mensaje = "No se encontró el id del contacto." });
+        }
+
+        var query = await (from Telefono in context.Telefonos
+                           where Telefono.ContactoId == idContacto
+                           select new
+                           {
+                               Telefono.TelefonoId
+                           }).ToListAsync();
+
+        var query2 = await (from Correo in context.Correos
+                           where Correo.ContactoId == idContacto
+                           select new
+                           {
+                               Correo.CorreoId
+                           }).ToListAsync();
+
+
+        for (int i = 0; i < query.Count(); i++)
+        {
+            var telefono = await context.Telefonos.FindAsync(query[i].TelefonoId);
+            context.Remove(telefono);
+            await context.SaveChangesAsync();
+        }
+
+        for (int i = 0; i < query2.Count(); i++)
+        {
+            var correo = await context.Correos.FindAsync(query2[i].CorreoId);
+            context.Remove(correo);
+            await context.SaveChangesAsync();
+        }
+
+        context.Remove(contactoID);
+        await context.SaveChangesAsync();
+        return Results.Ok();
+    }
+    catch (Exception exc)
+    {
+        return Results.Json(new { codigo = 500, mensaje = exc.Message },
+                    statusCode: StatusCodes.Status500InternalServerError);
+    }
+});
+
 app.MapPost("/correo", async (Correo Correo, Tiusr4plMohisatarea4Context context) =>
 {
     try
@@ -232,7 +283,7 @@ app.MapPost("/correo", async (Correo Correo, Tiusr4plMohisatarea4Context context
     }
 });
 
-app.MapPost("/correo", async (Telefono Telef, Tiusr4plMohisatarea4Context context) =>
+app.MapPost("/telefono", async (Telefono Telef, Tiusr4plMohisatarea4Context context) =>
 {
     try
     {
