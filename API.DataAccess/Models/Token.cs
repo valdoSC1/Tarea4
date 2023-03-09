@@ -19,7 +19,7 @@ public partial class Token
     [JsonIgnore]
     public int? DuracionId { get; set; }
 
-    [Required(AllowEmptyStrings = false, ErrorMessage = "El token es requerido")]
+    [Required(AllowEmptyStrings = false, ErrorMessage = "El identificación es requerida")]
     public string? Identificacion { get; set; } = null!;
 
     [JsonIgnore]

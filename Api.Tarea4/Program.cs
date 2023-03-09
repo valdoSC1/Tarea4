@@ -91,7 +91,7 @@ app.MapPost("/login", async (Usuario user, Tiusr4plMohisatarea4Context context) 
                 await context.Tokens.AddAsync(itoken);
                 await context.SaveChangesAsync();
             }
-            return Results.Ok(new { user.Identificacion, query[0].CorreoElectronico, token = token });
+            return Results.Ok(new { codigo = 200, user.Identificacion, query[0].CorreoElectronico, token = token });
         }
         return Results.NotFound(new { codigo = 404, mensaje = "Usuario y/o contraseña incorrectos" });
     }
@@ -171,7 +171,8 @@ app.MapGet("contactosUsuario/{idUsuario}", async ([FromHeader] string token, [Fr
         }
         else
         {
-            return Results.Ok();
+            return Results.Json(new { mensaje = "El token no es válido" },
+                    statusCode: StatusCodes.Status500InternalServerError);
         }
     }
     catch (Exception exc)
@@ -256,7 +257,8 @@ app.MapGet("contactos/{id}", async ([FromHeader] string token, [FromHeader] stri
         }
         else
         {
-            return Results.Ok();
+            return Results.Json(new { mensaje = "El token no es válido" },
+                    statusCode: StatusCodes.Status500InternalServerError);
         }
     }
     catch (Exception exc)
@@ -266,31 +268,249 @@ app.MapGet("contactos/{id}", async ([FromHeader] string token, [FromHeader] stri
     }
 });
 
-
-/*Contactos*/
-app.MapPost("/registroContacto", async ([FromBody] ContactoUsuario Contacto, Tiusr4plMohisatarea4Context context) =>
+//Registro contactos
+app.MapPost("/registroContacto", async ([FromHeader] string token, [FromHeader] string identificacion, [FromBody] ContactoUsuario Contacto, Tiusr4plMohisatarea4Context context) =>
 {
     try
     {
-        if (!MiniValidator.TryValidate(Contacto, out var errors))
+        if (String.IsNullOrEmpty(token))
         {
-            return Results.BadRequest(new { id = 400, mensaje = "Datos incorrectos", errores = errors });
+            return Results.Json(new { mensaje = "El token es requerido" },
+                statusCode: StatusCodes.Status500InternalServerError);
         }
 
-        if (await context.ContactoUsuarios.AnyAsync(c => c.Facebook == Contacto.Facebook || c.Twitter == Contacto.Twitter && c.Instagram == Contacto.Instagram))
+        if (string.IsNullOrEmpty(identificacion))
         {
-            return Results.Conflict(new { codigo = 409, mensaje = "Ya existe el contacto" });
+            return Results.BadRequest(new { mensaje = "La identificación es requerida" });
+        }
+
+        var validateToken = await (from tokens in context.Tokens
+                                   join duracion in context.DuracionTokens
+                                   on tokens.DuracionId equals duracion.DuracionId
+                                   where tokens.Identificacion == identificacion && tokens.Token1 == token
+                                   select new
+                                   {
+                                       tokens.TokenId,
+                                       tokens.FechaSolicitud,
+                                       duracion.Duracion
+                                   }).ToListAsync();
+
+        if (validateToken.Count > 0)
+        {
+            ValidarToken iValidarToken = new ValidarToken((DateTime)validateToken[0].FechaSolicitud, (int)validateToken[0].Duracion);
+            bool valido = iValidarToken.validacion();
+
+            if (valido)
+            {
+                Token itoken = new Token();
+                itoken.TokenId = validateToken[0].TokenId;
+                itoken.Token1 = token;
+                itoken.FechaSolicitud = DateTime.Now;
+                itoken.DuracionId = 1;
+                itoken.Identificacion = identificacion;
+
+                context.Tokens.Update(itoken);
+                await context.SaveChangesAsync();
+
+                if (!MiniValidator.TryValidate(Contacto, out var errors))
+                {
+                    return Results.BadRequest(new { id = 400, mensaje = "Datos incorrectos", errores = errors });
+                }
+
+                if (await context.ContactoUsuarios.AnyAsync(c => c.Facebook == Contacto.Facebook || c.Twitter == Contacto.Twitter && c.Instagram == Contacto.Instagram))
+                {
+                    return Results.Conflict(new { codigo = 409, mensaje = "Ya existe el contacto" });
+                }
+                else
+                {
+                    await context.ContactoUsuarios.AddAsync(Contacto);
+                    await context.SaveChangesAsync();
+
+                    return Results.Created($"/registroContacto/ {Contacto.ContactoId}", new
+                    {
+                        mensaje = "Creación exitosa",
+                        contacto = Contacto
+                    });
+                }
+            }
+            else
+            {
+                return Results.Json(new { mensaje = "El token ha expirado" },
+                    statusCode: StatusCodes.Status500InternalServerError);
+            }
         }
         else
         {
-            await context.ContactoUsuarios.AddAsync(Contacto);
-            await context.SaveChangesAsync();
+            return Results.Json(new { mensaje = "El token no es válido" },
+                    statusCode: StatusCodes.Status500InternalServerError);
+        }
+    }
+    catch (System.Exception exc)
+    {
+        return Results.Json(new { codigo = 500, mensaje = exc.Message },
+            statusCode: StatusCodes.Status500InternalServerError);
+    }
+});
 
-            return Results.Created($"/registroContacto/ {Contacto.ContactoId}", new
+//Registro correos
+app.MapPost("/correo", async ([FromHeader] string token, [FromHeader] string identificacion, Correo Correo, Tiusr4plMohisatarea4Context context) =>
+{
+    try
+    {
+        if (String.IsNullOrEmpty(token))
+        {
+            return Results.Json(new { mensaje = "El token es requerido" },
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+
+        if (string.IsNullOrEmpty(identificacion))
+        {
+            return Results.BadRequest(new { mensaje = "La identificación es requerida" });
+        }
+
+        var validateToken = await (from tokens in context.Tokens
+                                   join duracion in context.DuracionTokens
+                                   on tokens.DuracionId equals duracion.DuracionId
+                                   where tokens.Identificacion == identificacion && tokens.Token1 == token
+                                   select new
+                                   {
+                                       tokens.TokenId,
+                                       tokens.FechaSolicitud,
+                                       duracion.Duracion
+                                   }).ToListAsync();
+
+        if (validateToken.Count > 0)
+        {
+            ValidarToken iValidarToken = new ValidarToken((DateTime)validateToken[0].FechaSolicitud, (int)validateToken[0].Duracion);
+            bool valido = iValidarToken.validacion();
+
+            if (valido)
             {
-                mensaje = "Creación exitosa",
-                contacto = Contacto
-            });
+                Token itoken = new Token();
+                itoken.TokenId = validateToken[0].TokenId;
+                itoken.Token1 = token;
+                itoken.FechaSolicitud = DateTime.Now;
+                itoken.DuracionId = 1;
+                itoken.Identificacion = identificacion;
+
+                context.Tokens.Update(itoken);
+                await context.SaveChangesAsync();
+
+                if (!MiniValidator.TryValidate(Correo, out var errors))
+                {
+                    return Results.BadRequest(new { id = 400, mensaje = "Datos incorrectos", errores = errors });
+                }
+
+                if (await context.Correos.AnyAsync(c => c.CorreoElectronico == Correo.CorreoElectronico && c.CorreoId == Correo.CorreoId))
+                {
+                    return Results.Conflict(new { codigo = 409, mensaje = "Ya existe el correo" });
+                }
+                else
+                {
+                    await context.Correos.AddAsync(Correo);
+                    await context.SaveChangesAsync();
+
+                    return Results.Created($"/correo/ {Correo.CorreoId}", new
+                    {
+                        mensaje = "Creación exitosa",
+                        contacto = Correo
+                    });
+                }
+            }
+            else
+            {
+                return Results.Json(new { mensaje = "El token ha expirado" },
+                    statusCode: StatusCodes.Status500InternalServerError);
+            }
+        }
+        else
+        {
+            return Results.Json(new { mensaje = "El token no es válido" },
+                   statusCode: StatusCodes.Status500InternalServerError);
+        }
+    }
+    catch (System.Exception exc)
+    {
+        return Results.Json(new { codigo = 500, mensaje = exc.Message },
+            statusCode: StatusCodes.Status500InternalServerError);
+    }
+});
+
+//Registro teléfonos
+app.MapPost("/telefono", async ([FromHeader] string token, [FromHeader] string identificacion, Telefono Telef, Tiusr4plMohisatarea4Context context) =>
+{
+    try
+    {
+        if (String.IsNullOrEmpty(token))
+        {
+            return Results.Json(new { mensaje = "El token es requerido" },
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+
+        if (string.IsNullOrEmpty(identificacion))
+        {
+            return Results.BadRequest(new { mensaje = "La identificación es requerida" });
+        }
+
+        var validateToken = await (from tokens in context.Tokens
+                                   join duracion in context.DuracionTokens
+                                   on tokens.DuracionId equals duracion.DuracionId
+                                   where tokens.Identificacion == identificacion && tokens.Token1 == token
+                                   select new
+                                   {
+                                       tokens.TokenId,
+                                       tokens.FechaSolicitud,
+                                       duracion.Duracion
+                                   }).ToListAsync();
+
+        if (validateToken.Count > 0)
+        {
+            ValidarToken iValidarToken = new ValidarToken((DateTime)validateToken[0].FechaSolicitud, (int)validateToken[0].Duracion);
+            bool valido = iValidarToken.validacion();
+
+            if (valido)
+            {
+                Token itoken = new Token();
+                itoken.TokenId = validateToken[0].TokenId;
+                itoken.Token1 = token;
+                itoken.FechaSolicitud = DateTime.Now;
+                itoken.DuracionId = 1;
+                itoken.Identificacion = identificacion;
+
+                context.Tokens.Update(itoken);
+                await context.SaveChangesAsync();
+
+                if (!MiniValidator.TryValidate(Telef, out var errors))
+                {
+                    return Results.BadRequest(new { id = 400, mensaje = "Datos incorrectos", errores = errors });
+                }
+
+                if (await context.Telefonos.AnyAsync(c => c.NumeroTelefono == Telef.NumeroTelefono && c.ContactoId == Telef.ContactoId ))// Se puede agregar el id para hacerlo mas unico
+                {
+                    return Results.Conflict(new { codigo = 409, mensaje = "Ya existe el teléfono" });
+                }
+                else
+                {
+                    await context.Telefonos.AddAsync(Telef);
+                    await context.SaveChangesAsync();
+
+                    return Results.Created($"/telefono/ {Telef.TelefonoId}", new
+                    {
+                        mensaje = "Creación exitosa",
+                        contacto = Telef
+                    });
+                }
+            }
+            else
+            {
+                return Results.Json(new { mensaje = "El token ha expirado" },
+                    statusCode: StatusCodes.Status500InternalServerError);
+            }
+        }
+        else
+        {
+            return Results.Json(new { mensaje = "El token no es válido" },
+                  statusCode: StatusCodes.Status500InternalServerError);
         }
     }
     catch (System.Exception exc)
@@ -301,25 +521,83 @@ app.MapPost("/registroContacto", async ([FromBody] ContactoUsuario Contacto, Tiu
 });
 
 //Actualizar la información de un contacto
-app.MapPut("/contactos/{idContacto}", async (int idContacto, ContactoUsuario contactousuario, Tiusr4plMohisatarea4Context context) =>
+app.MapPut("/contactos/{idContacto}", async ([FromHeader] string token, [FromHeader] string identificacion, int idContacto, ContactoUsuario contactousuario, Tiusr4plMohisatarea4Context context) =>
 {
-    var contacto = await context.ContactoUsuarios.FindAsync(idContacto);
-    if (contacto == null)
-    {
-        return Results.NotFound(new { codigo = 404, mensaje = "No se encontró el contacto." });
-    }
     try
     {
-        contacto.Nombre = contactousuario.Nombre;
-        contacto.PrimerApellido = contactousuario.PrimerApellido;
-        contacto.SegundoApellido = contactousuario.SegundoApellido;
-        contacto.Facebook = contactousuario.Facebook;
-        contacto.Instagram = contactousuario.Instagram;
-        contacto.Twitter = contactousuario.Twitter;
+        if (String.IsNullOrEmpty(token))
+        {
+            return Results.Json(new { mensaje = "El token es requerido" },
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
 
-        context.ContactoUsuarios.Update(contacto);
-        await context.SaveChangesAsync();
-        return Results.NoContent();
+        if (string.IsNullOrEmpty(identificacion))
+        {
+            return Results.BadRequest(new { mensaje = "La identificación es requerida" });
+        }
+
+        var validateToken = await (from tokens in context.Tokens
+                                   join duracion in context.DuracionTokens
+                                   on tokens.DuracionId equals duracion.DuracionId
+                                   where tokens.Identificacion == identificacion && tokens.Token1 == token
+                                   select new
+                                   {
+                                       tokens.TokenId,
+                                       tokens.FechaSolicitud,
+                                       duracion.Duracion
+                                   }).ToListAsync();
+
+        if (validateToken.Count > 0)
+        {
+            ValidarToken iValidarToken = new ValidarToken((DateTime)validateToken[0].FechaSolicitud, (int)validateToken[0].Duracion);
+            bool valido = iValidarToken.validacion();
+
+            if (valido)
+            {
+                Token itoken = new Token();
+                itoken.TokenId = validateToken[0].TokenId;
+                itoken.Token1 = token;
+                itoken.FechaSolicitud = DateTime.Now;
+                itoken.DuracionId = 1;
+                itoken.Identificacion = identificacion;
+
+                context.Tokens.Update(itoken);
+                await context.SaveChangesAsync();
+
+                var contacto = await context.ContactoUsuarios.FindAsync(idContacto);
+                if (contacto == null)
+                {
+                    return Results.NotFound(new { mensaje = "No se encontró el contacto" });
+                }
+
+                if (!MiniValidator.TryValidate(contactousuario, out var errors))
+                {
+                    return Results.Json(new { mensaje = "Datos incorrectos", errores = errors },
+                        statusCode: StatusCodes.Status405MethodNotAllowed);
+                }
+
+                contacto.Nombre = contactousuario.Nombre;
+                contacto.PrimerApellido = contactousuario.PrimerApellido;
+                contacto.SegundoApellido = contactousuario.SegundoApellido;
+                contacto.Facebook = contactousuario.Facebook;
+                contacto.Instagram = contactousuario.Instagram;
+                contacto.Twitter = contactousuario.Twitter;
+
+                context.ContactoUsuarios.Update(contacto);
+                await context.SaveChangesAsync();
+                return Results.Ok();
+            }
+            else
+            {
+                return Results.Json(new { mensaje = "El token ha expirado" },
+                    statusCode: StatusCodes.Status500InternalServerError);
+            }
+        }
+        else
+        {
+            return Results.Json(new { mensaje = "El token no es válido" },
+                   statusCode: StatusCodes.Status500InternalServerError);
+        }
     }
     catch (Exception exc)
     {
@@ -329,30 +607,78 @@ app.MapPut("/contactos/{idContacto}", async (int idContacto, ContactoUsuario con
 });
 
 //Actualizar la información de un telefono
-app.MapPut("/telefono/{idTelefono}", async (int idTelefono, Telefono telefono, Tiusr4plMohisatarea4Context context) =>
+app.MapPut("/telefono/{idTelefono}", async ([FromHeader] string token, [FromHeader] string identificacion, int idTelefono, Telefono telefono, Tiusr4plMohisatarea4Context context) =>
 {
-    var telefonoID = await context.Telefonos.FindAsync(idTelefono);
-    if (telefonoID == null)
-    {
-        return Results.NotFound(new { codigo = 404, mensaje = "No se encontró el telefono." });
-    }
     try
     {
-        if (!MiniValidator.TryValidate(telefono, out var errorTelefono))
+        if (String.IsNullOrEmpty(token))
         {
-            return Results.BadRequest(new { id = 400, mensaje = "Datos incorrectos", errores = errorTelefono });
+            return Results.Json(new { mensaje = "El token es requerido" },
+                statusCode: StatusCodes.Status500InternalServerError);
         }
-        if (await context.Telefonos.AnyAsync(c => c.NumeroTelefono == telefono.NumeroTelefono))
+
+        if (string.IsNullOrEmpty(identificacion))
         {
-            return Results.Conflict(new { codigo = 409, mensaje = "Ya existe el telefono." });
+            return Results.BadRequest(new { mensaje = "La identificación es requerida" });
+        }
+
+        var validateToken = await (from tokens in context.Tokens
+                                   join duracion in context.DuracionTokens
+                                   on tokens.DuracionId equals duracion.DuracionId
+                                   where tokens.Identificacion == identificacion && tokens.Token1 == token
+                                   select new
+                                   {
+                                       tokens.TokenId,
+                                       tokens.FechaSolicitud,
+                                       duracion.Duracion
+                                   }).ToListAsync();
+
+        if (validateToken.Count > 0)
+        {
+            ValidarToken iValidarToken = new ValidarToken((DateTime)validateToken[0].FechaSolicitud, (int)validateToken[0].Duracion);
+            bool valido = iValidarToken.validacion();
+
+            if (valido)
+            {
+                Token itoken = new Token();
+                itoken.TokenId = validateToken[0].TokenId;
+                itoken.Token1 = token;
+                itoken.FechaSolicitud = DateTime.Now;
+                itoken.DuracionId = 1;
+                itoken.Identificacion = identificacion;
+
+                context.Tokens.Update(itoken);
+                await context.SaveChangesAsync();
+
+                var telefonoID = await context.Telefonos.FindAsync(idTelefono);
+                if (telefonoID == null)
+                {
+                    return Results.NotFound(new { codigo = 404, mensaje = "No se encontró el telefono" });
+                }
+
+                if (!MiniValidator.TryValidate(telefono, out var errorTelefono))
+                {
+                    return Results.Json(new { mensaje = "Datos incorrectos", errores = errorTelefono },
+                        statusCode: StatusCodes.Status405MethodNotAllowed);
+                }
+                else
+                {
+                    telefonoID.NumeroTelefono = telefono.NumeroTelefono;
+                    context.Telefonos.Update(telefonoID);
+                    await context.SaveChangesAsync();
+                    return Results.Ok();
+                }
+            }
+            else
+            {
+                return Results.Json(new { mensaje = "El token ha expirado" },
+                    statusCode: StatusCodes.Status500InternalServerError);
+            }
         }
         else
         {
-            telefonoID.ContactoId = telefono.ContactoId;
-            telefonoID.NumeroTelefono = telefono.NumeroTelefono;
-            context.Telefonos.Update(telefonoID);
-            await context.SaveChangesAsync();
-            return Results.NoContent();
+            return Results.Json(new { mensaje = "El token no es válido" },
+                  statusCode: StatusCodes.Status500InternalServerError);
         }
     }
     catch (Exception exc)
@@ -363,30 +689,77 @@ app.MapPut("/telefono/{idTelefono}", async (int idTelefono, Telefono telefono, T
 });
 
 //Actualizar la información de un contacto
-app.MapPut("/correo/{idCorreo}", async (int idCorreo, Correo correo, Tiusr4plMohisatarea4Context context) =>
+app.MapPut("/correo/{idCorreo}", async ([FromHeader] string token, [FromHeader] string identificacion, int idCorreo, Correo correo, Tiusr4plMohisatarea4Context context) =>
 {
-    var correoID = await context.Correos.FindAsync(idCorreo);
-    if (correoID == null)
-    {
-        return Results.NotFound(new { codigo = 404, mensaje = "No se encontró el correo." });
-    }
     try
     {
-        if (!MiniValidator.TryValidate(correo, out var errorTelefono))
+        if (String.IsNullOrEmpty(token))
         {
-            return Results.BadRequest(new { id = 400, mensaje = "Datos incorrectos", errores = errorTelefono });
+            return Results.Json(new { mensaje = "El token es requerido" },
+                statusCode: StatusCodes.Status500InternalServerError);
         }
-        if (await context.Correos.AnyAsync(c => c.CorreoElectronico == correo.CorreoElectronico))
+
+        if (string.IsNullOrEmpty(identificacion))
         {
-            return Results.Conflict(new { codigo = 409, mensaje = "Ya existe el correo." });
+            return Results.BadRequest(new { mensaje = "La identificación es requerida" });
+        }
+
+        var validateToken = await (from tokens in context.Tokens
+                                   join duracion in context.DuracionTokens
+                                   on tokens.DuracionId equals duracion.DuracionId
+                                   where tokens.Identificacion == identificacion && tokens.Token1 == token
+                                   select new
+                                   {
+                                       tokens.TokenId,
+                                       tokens.FechaSolicitud,
+                                       duracion.Duracion
+                                   }).ToListAsync();
+
+        if (validateToken.Count > 0)
+        {
+            ValidarToken iValidarToken = new ValidarToken((DateTime)validateToken[0].FechaSolicitud, (int)validateToken[0].Duracion);
+            bool valido = iValidarToken.validacion();
+
+            if (valido)
+            {
+                Token itoken = new Token();
+                itoken.TokenId = validateToken[0].TokenId;
+                itoken.Token1 = token;
+                itoken.FechaSolicitud = DateTime.Now;
+                itoken.DuracionId = 1;
+                itoken.Identificacion = identificacion;
+
+                context.Tokens.Update(itoken);
+                await context.SaveChangesAsync();
+
+                var correoID = await context.Correos.FindAsync(idCorreo);
+                if (correoID == null)
+                {
+                    return Results.NotFound(new { codigo = 404, mensaje = "No se encontró el correo" });
+                }
+                if (!MiniValidator.TryValidate(correo, out var error))
+                {
+                    return Results.Json(new { mensaje = "Datos incorrectos", errores = error },
+                        statusCode: StatusCodes.Status405MethodNotAllowed);
+                }
+                else
+                {                   
+                    correoID.CorreoElectronico = correo.CorreoElectronico;
+                    context.Correos.Update(correoID);
+                    await context.SaveChangesAsync();
+                    return Results.Ok();
+                }
+            }
+            else
+            {
+                return Results.Json(new { mensaje = "El token ha expirado" },
+                    statusCode: StatusCodes.Status500InternalServerError);
+            }
         }
         else
         {
-            correoID.ContactoId = correo.ContactoId;
-            correoID.CorreoElectronico = correo.CorreoElectronico;
-            context.Correos.Update(correoID);
-            await context.SaveChangesAsync();
-            return Results.NoContent();
+            return Results.Json(new { mensaje = "El token no es válido" },
+                  statusCode: StatusCodes.Status500InternalServerError);
         }
     }
     catch (Exception exc)
@@ -487,7 +860,8 @@ app.MapDelete("/contacto/{idContacto}", async ([FromHeader] string token, [FromH
         }
         else
         {
-            return Results.Ok();
+            return Results.Json(new { mensaje = "El token no es válido" },
+                  statusCode: StatusCodes.Status500InternalServerError);
         }
     }
     catch (Exception exc)
@@ -496,65 +870,6 @@ app.MapDelete("/contacto/{idContacto}", async ([FromHeader] string token, [FromH
                     statusCode: StatusCodes.Status500InternalServerError);
     }
 });
-
-app.MapPost("/correo", async (Correo Correo, Tiusr4plMohisatarea4Context context) =>
-{
-    try
-    {
-        ArrayList mensajeError = new ArrayList();
-        if (!MiniValidator.TryValidate(Correo, out var errors))
-        {
-            return Results.BadRequest(new { id = 400, mensaje = "Datos incorrectos", errores = errors });
-        }
-
-
-        if (await context.Correos.AnyAsync(c => c.CorreoElectronico == Correo.CorreoElectronico))
-        {
-            return Results.Conflict(new { codigo = 409, mensaje = "Ya existe el correo." });
-        }
-        else
-        {
-            await context.Correos.AddAsync(Correo);
-            await context.SaveChangesAsync();
-            //var miContacto = await context.Correos.FirstAsync(c => c.CorreoElectronico == Correo.CorreoElectronico);
-            return Results.NoContent();
-        }
-    }
-    catch (System.Exception exc)
-    {
-        return Results.Json(new { codigo = 500, mensaje = exc.Message },
-            statusCode: StatusCodes.Status500InternalServerError);
-    }
-});
-
-app.MapPost("/telefono", async (Telefono Telef, Tiusr4plMohisatarea4Context context) =>
-{
-    try
-    {
-        ArrayList mensajeError = new ArrayList();
-        if (!MiniValidator.TryValidate(Telef, out var errors))
-        {
-            return Results.BadRequest(new { id = 400, mensaje = "Datos incorrectos", errores = errors });
-        }
-
-        if (await context.Telefonos.AnyAsync(c => c.NumeroTelefono == Telef.NumeroTelefono))// Se puede agregar el id para hacerlo mas unico
-        {
-            return Results.Conflict(new { codigo = 409, mensaje = "Ya existe el telefono." });
-        }
-        else
-        {
-            await context.Telefonos.AddAsync(Telef);
-            await context.SaveChangesAsync();
-            //var miContacto = await context.Telefonos.FirstAsync(c => c.NumeroTelefono == Telef.NumeroTelefono);
-            return Results.NoContent();
-        }
-    }
-    catch (System.Exception exc)
-    {
-        return Results.Json(new { codigo = 500, mensaje = exc.Message },
-            statusCode: StatusCodes.Status500InternalServerError);
-    }
-}); ;
 
 app.Run();
 

@@ -7,6 +7,7 @@ namespace API.DataAccess.Models;
 
 public partial class DuracionToken
 {
+    [Required(ErrorMessage = "La el ID de la duracuión es requerido")]
     public int? DuracionId { get; set; }
 
     [Required(ErrorMessage = "La duración es requerida")]
