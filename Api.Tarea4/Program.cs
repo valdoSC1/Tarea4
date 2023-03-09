@@ -44,53 +44,26 @@ app.MapGet("/weatherforecast", () =>
 })
 .WithName("GetWeatherForecast");
 
-//Verbo get para consultar servicios
-app.MapGet("/servicio", async (Tiusr4plMohisatarea4Context context) =>
+//Login
+app.MapPost("/login", async (Usuario user, Tiusr4plMohisatarea4Context context) =>
 {
     try
     {
-        DatosSQL cadx = new DatosSQL();
-
-        List<SqlParameter> lstParametros = new List<SqlParameter>();
-
-        lstParametros.Add(new SqlParameter("@idUsuario", "305380744"));
-        lstParametros.Add(new SqlParameter("@idContacto", 1));
-
-        //var datos = cadx.ExecuteSPWithDT("SP_ConsultarContactos", lstParametros);
-
-        var datosa = await context.ContactoUsuarios
-                .FromSqlRaw($"SP_ConsultarContactos {"305380744"}, {1}")
-                .ToListAsync();
-
-        //ArrayList datosRespuesta = new ArrayList();
-
-        List<ContactoUsuario> datosRespuesta = new List<ContactoUsuario>();
-
-        //drUsuario As DataRow In dtUsuarios.Rows
-        //        .CodigoUsuario = drUsuario("CodigoUsuario"),
-        //.Nombre = drUsuario("Nombre"),
-        //.Apellidos = drUsuario("Apellidos"),
-        //.Correo = drUsuario("Correo"),
-        //.RolSistema = drUsuario("Rol"),
-        //.Password = drUsuario("Contraseña")
-
         /*
-        foreach (DataRow drContacto in datos.Rows)
+        string result = string.Empty;
+        byte[] OcultarString = System.Text.Encoding.Unicode.GetBytes(user.Contrasena);
+        user.Contrasena = Convert.ToBase64String(OcultarString);
+
+        if (String.IsNullOrEmpty(user.NombreUsuario) || String.IsNullOrEmpty(user.Contrasena))
         {
-            datosRespuesta.Add(new ContactoUsuario
-            {
-                ContactoId = (int)drContacto["IdContacto"],
-                Nombre = (string)drContacto["Nombre"]
-            });
-
-            //ContactoUsuario iContacto = new ContactoUsuario();
-            //iContacto.ContactoId = (int)drContacto["IdContacto"];
-            //iContacto.Nombre = ;
-
-            //datosRespuesta.Add(iContacto);
+            return Results.BadRequest(new { id = 400, mensaje = "Datos incorrectos" });
         }
+        if (await context.Usuarios.AnyAsync<Usuario>(x => x.NombreUsuario == user.NombreUsuario && x.Contrasena == user.Contrasena))
+        {
+            return Results.Ok(new { nombre = user.NombreUsuario });
+        }
+        return Results.NotFound(new { codigo = 404, mensaje = "No se encontró el usuario." });
         */
-        return Results.Ok(datosa);
     }
     catch (Exception exc)
     {
