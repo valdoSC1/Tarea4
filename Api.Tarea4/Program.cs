@@ -183,10 +183,6 @@ app.MapPost("/contacto", async (ContactoUsuario Contacto, Tiusr4plMohisatarea4Co
             return Results.BadRequest(new { id = 400, mensaje = "Datos incorrectos", errores = errors });
         }
 
-        
-
-
-
         if (await context.ContactoUsuarios.AnyAsync(c => c.Facebook == Contacto.Facebook || c.Twitter == Contacto.Twitter && c.Instagram == Contacto.Instagram))
         {
             return Results.Conflict(new { codigo = 409, mensaje = "Ya existe el contacto." });
@@ -229,11 +225,7 @@ app.MapPost("/correo", async (Correo Correo, Tiusr4plMohisatarea4Context context
             await context.Correos.AddAsync(Correo);
             await context.SaveChangesAsync();
             var miContacto = await context.Correos.FirstAsync(c => c.CorreoElectronico == Correo.CorreoElectronico);
-            return Results.Created($"contactos/{miContacto.ContactoId}", new
-            {
-                mensaje = "Creación exitosa",
-                Correo = 
-            });
+            return Results.NoContent();
         }
     }
     catch (System.Exception exc)
