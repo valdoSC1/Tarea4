@@ -31,12 +31,11 @@ if (app.Environment.IsDevelopment())
 app.MapPost("/login", async (Usuario user, Tiusr4plMohisatarea4Context context) =>
 {
     try
-    {
-        if (String.IsNullOrEmpty(user.Identificacion) || String.IsNullOrEmpty(user.Contrasena))
+    {        
+        if (user.Contrasena == null)
         {
-            return Results.NotFound(new { id = 404, mensaje = "Vacío" });
+            user.Contrasena = "";
         }
-
         string result = string.Empty;
         byte[] OcultarString = System.Text.Encoding.Unicode.GetBytes(user.Contrasena);
         user.Contrasena = Convert.ToBase64String(OcultarString);
@@ -102,15 +101,20 @@ app.MapPost("/login", async (Usuario user, Tiusr4plMohisatarea4Context context) 
     }
 });
 
-//Verbo get para obtener datos de un contacto en particular
-app.MapGet("contactos/{id}", async ([FromHeader] string token, [FromHeader] string identificacion, int id, Tiusr4plMohisatarea4Context context) =>
+//Obtener datos de los contactos de un usuario en particular
+app.MapGet("contactosUsuario/{idUsuario}", async ([FromHeader] string token, [FromHeader] string identificacion, string idUsuario, Tiusr4plMohisatarea4Context context) =>
 {
     try
-    { 
+    {
         if (String.IsNullOrEmpty(token))
         {
-            return Results.Json(new { mensaje = "No se recibió el token" },
+            return Results.Json(new { mensaje = "El token es requerido" },
                 statusCode: StatusCodes.Status500InternalServerError);
+        }
+
+        if (string.IsNullOrEmpty(identificacion))
+        {
+            return Results.BadRequest(new { mensaje = "La identificación es requerida" });
         }
 
         var validateToken = await (from tokens in context.Tokens
@@ -119,6 +123,7 @@ app.MapGet("contactos/{id}", async ([FromHeader] string token, [FromHeader] stri
                                    where tokens.Identificacion == identificacion && tokens.Token1 == token
                                    select new
                                    {
+                                       tokens.TokenId,
                                        tokens.FechaSolicitud,
                                        duracion.Duracion
                                    }).ToListAsync();
@@ -130,10 +135,99 @@ app.MapGet("contactos/{id}", async ([FromHeader] string token, [FromHeader] stri
 
             if (valido)
             {
+                Token itoken = new Token();
+                itoken.TokenId = validateToken[0].TokenId;
+                itoken.Token1 = token;
+                itoken.FechaSolicitud = DateTime.Now;
+                itoken.DuracionId = 1;
+                itoken.Identificacion = identificacion;
+
+                context.Tokens.Update(itoken);
+                await context.SaveChangesAsync();
+
+                var query = await (from ContactoUsuario in context.ContactoUsuarios
+                                   join Telefono in context.Telefonos on ContactoUsuario.ContactoId equals Telefono.ContactoId
+                                   join Correo in context.Correos on ContactoUsuario.ContactoId equals Correo.ContactoId
+                                   where ContactoUsuario.UsuarioId == idUsuario
+                                   select new
+                                   {
+                                       ContactoUsuario.Nombre,
+                                       ContactoUsuario.PrimerApellido,
+                                       ContactoUsuario.SegundoApellido,
+                                       ContactoUsuario.Facebook,
+                                       ContactoUsuario.Instagram,
+                                       ContactoUsuario.Twitter,
+                                       Telefono.NumeroTelefono,
+                                       Correo.CorreoElectronico
+                                   }).ToListAsync();
+                return Results.Ok(query);
+            }
+            else
+            {
+                return Results.Json(new { mensaje = "El token ha expirado" },
+                    statusCode: StatusCodes.Status500InternalServerError);
+            }
+        }
+        else
+        {
+            return Results.Ok();
+        }
+    }
+    catch (Exception exc)
+    {
+        return Results.Json(new { codigo = 500, mensaje = exc.Message },
+            statusCode: StatusCodes.Status500InternalServerError);
+    }
+});
+
+//Verbo get para obtener datos de un contacto en particular
+app.MapGet("contactos/{id}", async ([FromHeader] string token, [FromHeader] string identificacion, int id, Tiusr4plMohisatarea4Context context) =>
+{
+    try
+    { 
+        if (String.IsNullOrEmpty(token))
+        {
+            return Results.Json(new { mensaje = "El token es requerido" },
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+
+        if (string.IsNullOrEmpty(identificacion))
+        {
+            return Results.BadRequest(new { mensaje = "La identificación es requerida" });
+        }
+
+        var validateToken = await (from tokens in context.Tokens
+                                   join duracion in context.DuracionTokens
+                                   on tokens.DuracionId equals duracion.DuracionId
+                                   where tokens.Identificacion == identificacion && tokens.Token1 == token
+                                   select new
+                                   {
+                                       tokens.TokenId,
+                                       tokens.FechaSolicitud,
+                                       duracion.Duracion
+                                   }).ToListAsync();
+
+        if (validateToken.Count > 0)
+        {
+            ValidarToken iValidarToken = new ValidarToken((DateTime)validateToken[0].FechaSolicitud, (int)validateToken[0].Duracion);
+            bool valido = iValidarToken.validacion();
+
+            if (valido)
+            {
+                Token itoken = new Token();
+                itoken.TokenId = validateToken[0].TokenId;
+                itoken.Token1 = token;
+                itoken.FechaSolicitud = DateTime.Now;
+                itoken.DuracionId = 1;
+                itoken.Identificacion = identificacion;
+
+                context.Tokens.Update(itoken);
+                await context.SaveChangesAsync();
+
                 var idContacto = await context.ContactoUsuarios.FindAsync(id);
                 if (idContacto == null)
                 {
-                    return Results.NotFound(new { codigo = 404, mensaje = "No se encontró el id del código." });
+                    return Results.NotFound(new { codigo = 404, mensaje = "No se encontró el contacto" });
                 }
 
                 var query = await (from ContactoUsuario in context.ContactoUsuarios
@@ -155,7 +249,7 @@ app.MapGet("contactos/{id}", async ([FromHeader] string token, [FromHeader] stri
             }
             else
             {
-                return Results.Json(new { mensaje = "El token a expirado" },
+                return Results.Json(new { mensaje = "El token ha expirado" },
                     statusCode: StatusCodes.Status500InternalServerError);
             }
         }
@@ -171,9 +265,8 @@ app.MapGet("contactos/{id}", async ([FromHeader] string token, [FromHeader] stri
     }
 });
 
-
 /*Contactos*/
-app.MapPost("/contacto", async (ContactoUsuario Contacto, Tiusr4plMohisatarea4Context context) =>
+app.MapPost("/registroContacto", async (ContactoUsuario Contacto, Tiusr4plMohisatarea4Context context) =>
 {
     try
     {
@@ -232,7 +325,7 @@ app.MapPost("/correo", async (Correo Correo, Tiusr4plMohisatarea4Context context
     }
 });
 
-app.MapPost("/correo", async (Telefono Telef, Tiusr4plMohisatarea4Context context) =>
+app.MapPost("/telefono", async (Telefono Telef, Tiusr4plMohisatarea4Context context) =>
 {
     try
     {
@@ -241,7 +334,6 @@ app.MapPost("/correo", async (Telefono Telef, Tiusr4plMohisatarea4Context contex
         {
             return Results.BadRequest(new { id = 400, mensaje = "Datos incorrectos", errores = errors });
         }
-
 
         if (await context.Telefonos.AnyAsync(c => c.NumeroTelefono == Telef.NumeroTelefono))// Se puede agregar el id para hacerlo mas unico
         {
@@ -261,7 +353,6 @@ app.MapPost("/correo", async (Telefono Telef, Tiusr4plMohisatarea4Context contex
             statusCode: StatusCodes.Status500InternalServerError);
     }
 });;
-
 
 app.Run();
 
