@@ -7,18 +7,19 @@ namespace API.DataAccess.Models;
 
 public partial class Token
 {
+    [JsonIgnore]
     public int? TokenId { get; set; }
-
+    
     [Required(AllowEmptyStrings = false, ErrorMessage = "El token es requerido")]
     public string? Token1 { get; set; } = null!;
 
-    [Required(ErrorMessage = "La fecha de solicitud es requerida")]
+    [JsonIgnore]
     public DateTime? FechaSolicitud { get; set; }
 
-    [Required(ErrorMessage = "El id de la duración es requerido")]
+    [JsonIgnore]
     public int? DuracionId { get; set; }
 
-    [Required(AllowEmptyStrings = false, ErrorMessage = "La identificación es requerida")]
+    [Required(AllowEmptyStrings = false, ErrorMessage = "El token es requerido")]
     public string? Identificacion { get; set; } = null!;
 
     [JsonIgnore]
