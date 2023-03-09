@@ -26,25 +26,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-       new WeatherForecast
-       (
-           DateTime.Now.AddDays(index),
-           Random.Shared.Next(-20, 55),
-           summaries[Random.Shared.Next(summaries.Length)]
-       ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
-
 //Login usuarios
 app.MapPost("/login", async (Usuario user, Tiusr4plMohisatarea4Context context) =>
 {
@@ -109,7 +90,6 @@ app.MapPost("/login", async (Usuario user, Tiusr4plMohisatarea4Context context) 
                 await context.Tokens.AddAsync(itoken);
                 await context.SaveChangesAsync();
             }
-
             return Results.Ok(new { user.Identificacion, query[0].CorreoElectronico, token = token });
         }
         return Results.NotFound(new { codigo = 404, mensaje = "Usuario y/o contraseña incorrectos" });
@@ -122,31 +102,66 @@ app.MapPost("/login", async (Usuario user, Tiusr4plMohisatarea4Context context) 
 });
 
 //Verbo get para obtener datos de un contacto en particular
-app.MapGet("contactos/{codigo}", async (int id, Tiusr4plMohisatarea4Context context) =>
+app.MapGet("contactos/{id}", async ([FromHeader] string token, [FromHeader] string identificacion, int id, Tiusr4plMohisatarea4Context context) =>
 {
-    var idContacto = await context.ContactoUsuarios.FindAsync(id);
-    if (idContacto == null)
-    {
-        return Results.NotFound(new { codigo = 404, mensaje = "No se encontró el id del código." });
-    }
     try
-    {
-        var query = await (from ContactoUsuario in context.ContactoUsuarios
-                           join Telefono in context.Telefonos on ContactoUsuario.ContactoId equals Telefono.ContactoId 
-                           join Correo in context.Correos on ContactoUsuario.ContactoId equals Correo.ContactoId
-                           where ContactoUsuario.ContactoId == id
-                           select new
-                           {
-                               ContactoUsuario.Nombre,
-                               ContactoUsuario.PrimerApellido,
-                               ContactoUsuario.SegundoApellido,
-                               ContactoUsuario.Facebook,
-                               ContactoUsuario.Instagram,
-                               ContactoUsuario.Twitter,
-                               Telefono.NumeroTelefono,
-                               Correo.CorreoElectronico
-                           }).ToListAsync();
-        return Results.Ok(query);
+    { 
+        if (String.IsNullOrEmpty(token))
+        {
+            return Results.Json(new { mensaje = "No se recibió el token" },
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+
+        var validateToken = await (from tokens in context.Tokens
+                                   join duracion in context.DuracionTokens
+                                   on tokens.DuracionId equals duracion.DuracionId
+                                   where tokens.Identificacion == identificacion && tokens.Token1 == token
+                                   select new
+                                   {
+                                       tokens.FechaSolicitud,
+                                       duracion.Duracion
+                                   }).ToListAsync();
+
+        if (validateToken.Count > 0)
+        {
+            ValidarToken iValidarToken = new ValidarToken((DateTime)validateToken[0].FechaSolicitud, (int)validateToken[0].Duracion);
+            bool valido = iValidarToken.validacion();
+
+            if (valido)
+            {
+                var idContacto = await context.ContactoUsuarios.FindAsync(id);
+                if (idContacto == null)
+                {
+                    return Results.NotFound(new { codigo = 404, mensaje = "No se encontró el id del código." });
+                }
+
+                var query = await (from ContactoUsuario in context.ContactoUsuarios
+                                   join Telefono in context.Telefonos on ContactoUsuario.ContactoId equals Telefono.ContactoId
+                                   join Correo in context.Correos on ContactoUsuario.ContactoId equals Correo.ContactoId
+                                   where ContactoUsuario.ContactoId == id
+                                   select new
+                                   {
+                                       ContactoUsuario.Nombre,
+                                       ContactoUsuario.PrimerApellido,
+                                       ContactoUsuario.SegundoApellido,
+                                       ContactoUsuario.Facebook,
+                                       ContactoUsuario.Instagram,
+                                       ContactoUsuario.Twitter,
+                                       Telefono.NumeroTelefono,
+                                       Correo.CorreoElectronico
+                                   }).ToListAsync();
+                return Results.Ok(query);
+            }
+            else
+            {
+                return Results.Json(new { mensaje = "El token a expirado" },
+                    statusCode: StatusCodes.Status500InternalServerError);
+            }
+        }
+        else
+        {
+            return Results.Ok();
+        }
     }
     catch (Exception exc)
     {
@@ -155,11 +170,21 @@ app.MapGet("contactos/{codigo}", async (int id, Tiusr4plMohisatarea4Context cont
     }
 });
 
-
-
 app.Run();
 
-internal record WeatherForecast(DateTime Date, int TemperatureC, string? Summary)
+internal record ValidarToken(DateTime fechaSolicitud, int duracionToken)
 {
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+    public bool validacion()
+    {
+        DateTime tokenLifetime = fechaSolicitud.AddMinutes(duracionToken);
+
+        if (tokenLifetime > DateTime.Now)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
 }
