@@ -44,28 +44,106 @@ app.MapGet("/weatherforecast", () =>
 })
 .WithName("GetWeatherForecast");
 
-//Login
+//Login usuarios
 app.MapPost("/login", async (Usuario user, Tiusr4plMohisatarea4Context context) =>
 {
     try
     {
-        /*
+        if (String.IsNullOrEmpty(user.Identificacion) || String.IsNullOrEmpty(user.Contrasena))
+        {
+            return Results.NotFound(new { id = 404, mensaje = "Vacío" });
+        }
+
         string result = string.Empty;
         byte[] OcultarString = System.Text.Encoding.Unicode.GetBytes(user.Contrasena);
         user.Contrasena = Convert.ToBase64String(OcultarString);
 
-        if (String.IsNullOrEmpty(user.NombreUsuario) || String.IsNullOrEmpty(user.Contrasena))
+        if (await context.Usuarios.AnyAsync<Usuario>(x => x.Identificacion == user.Identificacion && x.Contrasena == user.Contrasena))
         {
-            return Results.BadRequest(new { id = 400, mensaje = "Datos incorrectos" });
+            var query = await (from usuarios in context.Usuarios
+                               where usuarios.Identificacion == user.Identificacion
+                               select new
+                               {
+                                   usuarios.CorreoElectronico
+                               }).ToListAsync();
+
+            string token = "";
+
+            Random random = new Random();
+            string numeros = "0123456789";
+
+            int index;
+            for (int i = 0; i < 6; i++)
+            {
+                index = random.Next(numeros.Length);
+                token += numeros.Substring(index, 1);
+            }
+
+            var query2 = await (from tokens in context.Tokens
+                                where tokens.Identificacion == user.Identificacion
+                                select new
+                                {
+                                    tokens.TokenId
+                                }).ToListAsync();
+
+            Token itoken = new Token();
+            if (query2.Count > 0)
+            {
+                itoken.TokenId = query2[0].TokenId;
+                itoken.Token1 = token;
+                itoken.FechaSolicitud = DateTime.Now;
+                itoken.DuracionId = 1;
+                itoken.Identificacion = user.Identificacion;
+
+                context.Tokens.Update(itoken);
+                await context.SaveChangesAsync();
+            }
+            else
+            {
+                itoken.Token1 = token;
+                itoken.FechaSolicitud = DateTime.Now;
+                itoken.DuracionId = 1;
+                itoken.Identificacion = user.Identificacion;
+
+                await context.Tokens.AddAsync(itoken);
+                await context.SaveChangesAsync();
+            }
+
+            return Results.Ok(new { user.Identificacion, query[0].CorreoElectronico, token = token });
         }
-        if (await context.Usuarios.AnyAsync<Usuario>(x => x.NombreUsuario == user.NombreUsuario && x.Contrasena == user.Contrasena))
-        {
-            return Results.Ok(new { nombre = user.NombreUsuario });
-        }
-        return Results.NotFound(new { codigo = 404, mensaje = "No se encontró el usuario." });
-        */
+        return Results.NotFound(new { codigo = 404, mensaje = "Usuario y/o contraseña incorrectos" });
     }
     catch (Exception exc)
+    {
+        return Results.Json(new { codigo = 500, mensaje = exc.Message },
+            statusCode: StatusCodes.Status500InternalServerError);
+    }
+});
+
+// Consulta de servidores por nombre
+app.MapGet("/prueba", async (Tiusr4plMohisatarea4Context context) =>
+{
+    try
+    {
+        var gg = await context.Tokens.FindAsync(4);
+
+        DateTime prueba = (DateTime)gg.FechaSolicitud;        
+        DateTime tokenLimite = prueba.AddMinutes(2);
+
+        string mensaje = "siuuu";
+
+        if (tokenLimite > DateTime.Now)
+        {
+            mensaje = "siuuu";
+        }
+        else
+        {
+            mensaje = "nooo";
+        }
+
+        return Results.Ok(new { mensaje });
+    }
+    catch (System.Exception exc)
     {
         return Results.Json(new { codigo = 500, mensaje = exc.Message },
             statusCode: StatusCodes.Status500InternalServerError);
