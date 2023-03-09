@@ -213,18 +213,15 @@ app.MapPost("/correo", async (Correo Correo, Tiusr4plMohisatarea4Context context
         }
 
 
-
-
-
         if (await context.Correos.AnyAsync(c => c.CorreoElectronico == Correo.CorreoElectronico ))
         {
-            return Results.Conflict(new { codigo = 409, mensaje = "Ya existe el contacto." });
+            return Results.Conflict(new { codigo = 409, mensaje = "Ya existe el correo." });
         }
         else
         {
             await context.Correos.AddAsync(Correo);
             await context.SaveChangesAsync();
-            var miContacto = await context.Correos.FirstAsync(c => c.CorreoElectronico == Correo.CorreoElectronico);
+            //var miContacto = await context.Correos.FirstAsync(c => c.CorreoElectronico == Correo.CorreoElectronico);
             return Results.NoContent();
         }
     }
@@ -234,6 +231,36 @@ app.MapPost("/correo", async (Correo Correo, Tiusr4plMohisatarea4Context context
             statusCode: StatusCodes.Status500InternalServerError);
     }
 });
+
+app.MapPost("/correo", async (Telefono Telef, Tiusr4plMohisatarea4Context context) =>
+{
+    try
+    {
+        ArrayList mensajeError = new ArrayList();
+        if (!MiniValidator.TryValidate(Telef, out var errors))
+        {
+            return Results.BadRequest(new { id = 400, mensaje = "Datos incorrectos", errores = errors });
+        }
+
+
+        if (await context.Telefonos.AnyAsync(c => c.NumeroTelefono == Telef.NumeroTelefono))// Se puede agregar el id para hacerlo mas unico
+        {
+            return Results.Conflict(new { codigo = 409, mensaje = "Ya existe el telefono." });
+        }
+        else
+        {
+            await context.Telefonos.AddAsync(Telef);
+            await context.SaveChangesAsync();
+            //var miContacto = await context.Telefonos.FirstAsync(c => c.NumeroTelefono == Telef.NumeroTelefono);
+            return Results.NoContent();
+        }
+    }
+    catch (System.Exception exc)
+    {
+        return Results.Json(new { codigo = 500, mensaje = exc.Message },
+            statusCode: StatusCodes.Status500InternalServerError);
+    }
+});;
 
 
 app.Run();
