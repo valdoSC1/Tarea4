@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace API.Tarea4.Models;
+namespace API.DataAccess.Models;
 
 public partial class TokenAdmin
 {

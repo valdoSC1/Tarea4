@@ -19,11 +19,9 @@ public partial class Usuario
 
     public string CorreoElectronico { get; set; } = null!;
 
-    public int? IdToken { get; set; }
-
     public virtual ICollection<ContactoUsuario> ContactoUsuarios { get; } = new List<ContactoUsuario>();
 
     public virtual Estado Estado { get; set; } = null!;
 
-    public virtual Token? IdTokenNavigation { get; set; }
+    public virtual ICollection<Token> Tokens { get; } = new List<Token>();
 }

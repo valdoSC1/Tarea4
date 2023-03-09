@@ -5,11 +5,17 @@ namespace API.DataAccess.Models;
 
 public partial class Token
 {
-    public int IdToken { get; set; }
+    public int TokenId { get; set; }
 
-    public int Token1 { get; set; }
+    public string Token1 { get; set; } = null!;
 
-    public virtual ICollection<Usuario> Usuarios { get; } = new List<Usuario>();
+    public DateTime FechaSolicitud { get; set; }
 
-    public virtual ICollection<UsuariosAdministradore> UsuariosAdministradores { get; } = new List<UsuariosAdministradore>();
+    public int DuracionId { get; set; }
+
+    public string Identificacion { get; set; } = null!;
+
+    public virtual DuracionToken Duracion { get; set; } = null!;
+
+    public virtual Usuario IdentificacionNavigation { get; set; } = null!;
 }

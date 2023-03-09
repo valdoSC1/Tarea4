@@ -2,15 +2,15 @@
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 
-namespace API.Tarea4.Models;
+namespace API.DataAccess.Models;
 
-public partial class Tiusr11plMohisatarea4Context : DbContext
+public partial class Tiusr4plMohisatarea4Context : DbContext
 {
-    public Tiusr11plMohisatarea4Context()
+    public Tiusr4plMohisatarea4Context()
     {
     }
 
-    public Tiusr11plMohisatarea4Context(DbContextOptions<Tiusr11plMohisatarea4Context> options)
+    public Tiusr4plMohisatarea4Context(DbContextOptions<Tiusr4plMohisatarea4Context> options)
         : base(options)
     {
     }
@@ -27,18 +27,19 @@ public partial class Tiusr11plMohisatarea4Context : DbContext
 
     public virtual DbSet<Token> Tokens { get; set; }
 
+    public virtual DbSet<TokenAdmin> TokenAdmins { get; set; }
+
     public virtual DbSet<Usuario> Usuarios { get; set; }
 
     public virtual DbSet<UsuariosAdministradore> UsuariosAdministradores { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see http://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseSqlServer("Server=tiusr11pl.cuc-carrera-ti.ac.cr.\\MSSQLSERVER2019;Database=tiusr11pl_MOHISATarea4;user id=MOHISA; password=%30ll6dI1; Encrypt=False");
+        => optionsBuilder.UseSqlServer("Name=DefaultConnection");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder
-            .HasDefaultSchema("MOHISA")
+            .HasDefaultSchema("Tarea4Mohisa")
             .UseCollation("Modern_Spanish_CI_AS");
 
         modelBuilder.Entity<ContactoUsuario>(entity =>
@@ -143,29 +144,53 @@ public partial class Tiusr11plMohisatarea4Context : DbContext
             entity.Property(e => e.TokenId).HasColumnName("TokenID");
             entity.Property(e => e.DuracionId).HasColumnName("DuracionID");
             entity.Property(e => e.FechaSolicitud).HasColumnType("datetime");
+            entity.Property(e => e.Identificacion)
+                .HasMaxLength(20)
+                .IsUnicode(false);
             entity.Property(e => e.Token1)
                 .HasMaxLength(6)
                 .IsUnicode(false)
                 .HasColumnName("Token");
-            entity.Property(e => e.UsuarioId)
-                .HasMaxLength(20)
-                .IsUnicode(false)
-                .HasColumnName("UsuarioID");
 
             entity.HasOne(d => d.Duracion).WithMany(p => p.Tokens)
                 .HasForeignKey(d => d.DuracionId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Tokens_Duracion_Token");
 
-            entity.HasOne(d => d.Usuario).WithMany(p => p.Tokens)
-                .HasForeignKey(d => d.UsuarioId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Token_Usuarios_Administradores");
-
-            entity.HasOne(d => d.UsuarioNavigation).WithMany(p => p.Tokens)
-                .HasForeignKey(d => d.UsuarioId)
+            entity.HasOne(d => d.IdentificacionNavigation).WithMany(p => p.Tokens)
+                .HasForeignKey(d => d.Identificacion)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Token_Usuarios");
+        });
+
+        modelBuilder.Entity<TokenAdmin>(entity =>
+        {
+            entity.HasKey(e => e.TokenId);
+
+            entity.ToTable("Token_Admin", "dbo");
+
+            entity.Property(e => e.TokenId)
+                .ValueGeneratedNever()
+                .HasColumnName("TokenID");
+            entity.Property(e => e.CodigoUsuario)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasColumnName("codigoUsuario");
+            entity.Property(e => e.DuracionId).HasColumnName("DuracionID");
+            entity.Property(e => e.FechaSolicitud).HasColumnType("datetime");
+            entity.Property(e => e.Token)
+                .HasMaxLength(6)
+                .IsUnicode(false);
+
+            entity.HasOne(d => d.CodigoUsuarioNavigation).WithMany(p => p.TokenAdmins)
+                .HasForeignKey(d => d.CodigoUsuario)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Token_Admin_Usuarios_Administradores");
+
+            entity.HasOne(d => d.Duracion).WithMany(p => p.TokenAdmins)
+                .HasForeignKey(d => d.DuracionId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_Token_Admin_Duracion_Token");
         });
 
         modelBuilder.Entity<Usuario>(entity =>

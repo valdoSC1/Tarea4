@@ -13,9 +13,7 @@ public partial class UsuariosAdministradore
 
     public int EstadoId { get; set; }
 
-    public int? IdToken { get; set; }
-
     public virtual Estado Estado { get; set; } = null!;
 
-    public virtual Token? IdTokenNavigation { get; set; }
+    public virtual ICollection<TokenAdmin> TokenAdmins { get; } = new List<TokenAdmin>();
 }
