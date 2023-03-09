@@ -6,7 +6,7 @@ using System.Text.Json.Serialization;
 namespace API.DataAccess.Models;
 
 public partial class ContactoUsuario
-{
+{   [JsonIgnore]
     public int? ContactoId { get; set; }
 
     [Required(AllowEmptyStrings = false, ErrorMessage = "El id del usuario es requerido")]

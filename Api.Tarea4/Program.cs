@@ -2,6 +2,7 @@ using API.DataAccess;
 using API.DataAccess.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using MiniValidation;
 using System.Collections;
 using System.Data;
 using System.Data.SqlClient;
@@ -155,6 +156,48 @@ app.MapGet("contactos/{codigo}", async (int id, Tiusr4plMohisatarea4Context cont
     }
 });
 
+
+/*Contactos*/
+app.MapPost("/contacto", async (ContactoUsuario Contacto, Tiusr4plMohisatarea4Context context) =>
+{
+    try
+    {
+        ArrayList mensajeError = new ArrayList();
+        if (!MiniValidator.TryValidate(Contacto, out var errors))
+        {
+            return Results.BadRequest(new { id = 400, mensaje = "Datos incorrectos", errores = errors });
+        }
+
+        
+
+
+
+        if (await context.ContactoUsuarios.AnyAsync(c => c.Facebook == Contacto.Facebook || c.Twitter == Contacto.Twitter && c.Instagram == Contacto.Instagram))
+        {
+            return Results.Conflict(new { codigo = 409, mensaje = "Ya existe el contacto." });
+        }
+        else
+        {
+            await context.ContactoUsuarios.AddAsync(Contacto);
+            await context.SaveChangesAsync();
+            var miContacto = await context.ContactoUsuarios.FirstAsync(c => c.Usuario == Contacto.Usuario);
+            return Results.Created($"contactos/{miContacto.ContactoId}", new
+            {
+                mensaje = "Creación exitosa",
+                Nombre  = Contacto.Nombre,
+                Apellido = Contacto.PrimerApellido,
+                Facebook = Contacto.Facebook,
+                Instagram = Contacto.Instagram, 
+                Twitter = Contacto.Twitter
+            });
+        }
+    }
+    catch (System.Exception exc)
+    {
+        return Results.Json(new { codigo = 500, mensaje = exc.Message },
+            statusCode: StatusCodes.Status500InternalServerError);
+    }
+});
 
 
 app.Run();
