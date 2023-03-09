@@ -1,5 +1,6 @@
 using API.DataAccess;
 using API.DataAccess.Models;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Collections;
 using System.Data;
@@ -120,35 +121,41 @@ app.MapPost("/login", async (Usuario user, Tiusr4plMohisatarea4Context context) 
     }
 });
 
-// Consulta de servidores por nombre
-app.MapGet("/prueba", async (Tiusr4plMohisatarea4Context context) =>
+//Verbo get para obtener datos de un contacto en particular
+app.MapGet("contactos/{codigo}", async (int id, Tiusr4plMohisatarea4Context context) =>
 {
+    var idContacto = await context.ContactoUsuarios.FindAsync(id);
+    if (idContacto == null)
+    {
+        return Results.NotFound(new { codigo = 404, mensaje = "No se encontró el id del código." });
+    }
     try
     {
-        var gg = await context.Tokens.FindAsync(4);
-
-        DateTime prueba = (DateTime)gg.FechaSolicitud;        
-        DateTime tokenLimite = prueba.AddMinutes(2);
-
-        string mensaje = "siuuu";
-
-        if (tokenLimite > DateTime.Now)
-        {
-            mensaje = "siuuu";
-        }
-        else
-        {
-            mensaje = "nooo";
-        }
-
-        return Results.Ok(new { mensaje });
+        var query = await (from ContactoUsuario in context.ContactoUsuarios
+                           join Telefono in context.Telefonos on ContactoUsuario.ContactoId equals Telefono.ContactoId 
+                           join Correo in context.Correos on ContactoUsuario.ContactoId equals Correo.ContactoId
+                           where ContactoUsuario.ContactoId == id
+                           select new
+                           {
+                               ContactoUsuario.Nombre,
+                               ContactoUsuario.PrimerApellido,
+                               ContactoUsuario.SegundoApellido,
+                               ContactoUsuario.Facebook,
+                               ContactoUsuario.Instagram,
+                               ContactoUsuario.Twitter,
+                               Telefono.NumeroTelefono,
+                               Correo.CorreoElectronico
+                           }).ToListAsync();
+        return Results.Ok(query);
     }
-    catch (System.Exception exc)
+    catch (Exception exc)
     {
         return Results.Json(new { codigo = 500, mensaje = exc.Message },
             statusCode: StatusCodes.Status500InternalServerError);
     }
 });
+
+
 
 app.Run();
 
