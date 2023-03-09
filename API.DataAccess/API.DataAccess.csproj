@@ -7,6 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="NewFolder\**" />
+    <EmbeddedResource Remove="NewFolder\**" />
+    <None Remove="NewFolder\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <COMReference Include="{bee4bfec-6683-3e67-9167-3c0cbc68f40a}">
       <WrapperTool>tlbimp</WrapperTool>
       <VersionMinor>4</VersionMinor>

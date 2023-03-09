@@ -1,6 +1,8 @@
 using API.DataAccess;
 using API.DataAccess.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Collections;
+using System.Data;
 using System.Data.SqlClient;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -54,9 +56,41 @@ app.MapGet("/servicio", async (Tiusr4plMohisatarea4Context context) =>
         lstParametros.Add(new SqlParameter("@idUsuario", "305380744"));
         lstParametros.Add(new SqlParameter("@idContacto", 1));
 
-        cadx.ExecuteSPWithDT("SP_ConsultarContactos", lstParametros);
+        //var datos = cadx.ExecuteSPWithDT("SP_ConsultarContactos", lstParametros);
 
-        return Results.Ok(await context.Estados.ToListAsync());
+        var datosa = await context.ContactoUsuarios
+                .FromSqlRaw($"SP_ConsultarContactos {"305380744"}, {1}")
+                .ToListAsync();
+
+        //ArrayList datosRespuesta = new ArrayList();
+
+        List<ContactoUsuario> datosRespuesta = new List<ContactoUsuario>();
+
+        //drUsuario As DataRow In dtUsuarios.Rows
+        //        .CodigoUsuario = drUsuario("CodigoUsuario"),
+        //.Nombre = drUsuario("Nombre"),
+        //.Apellidos = drUsuario("Apellidos"),
+        //.Correo = drUsuario("Correo"),
+        //.RolSistema = drUsuario("Rol"),
+        //.Password = drUsuario("Contraseña")
+
+        /*
+        foreach (DataRow drContacto in datos.Rows)
+        {
+            datosRespuesta.Add(new ContactoUsuario
+            {
+                ContactoId = (int)drContacto["IdContacto"],
+                Nombre = (string)drContacto["Nombre"]
+            });
+
+            //ContactoUsuario iContacto = new ContactoUsuario();
+            //iContacto.ContactoId = (int)drContacto["IdContacto"];
+            //iContacto.Nombre = ;
+
+            //datosRespuesta.Add(iContacto);
+        }
+        */
+        return Results.Ok(datosa);
     }
     catch (Exception exc)
     {
