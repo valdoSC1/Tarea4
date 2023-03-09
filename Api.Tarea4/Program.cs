@@ -6,6 +6,7 @@ using MiniValidation;
 using System.Collections;
 using System.Data;
 using System.Data.SqlClient;
+using System.Diagnostics.Contracts;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -296,6 +297,102 @@ app.MapPost("/registroContacto", async ([FromBody] ContactoUsuario Contacto, Tiu
     {
         return Results.Json(new { codigo = 500, mensaje = exc.Message },
             statusCode: StatusCodes.Status500InternalServerError);
+    }
+});
+
+//Actualizar la información de un contacto
+app.MapPut("/contactos/{idContacto}", async (int idContacto, ContactoUsuario contactousuario, Tiusr4plMohisatarea4Context context) =>
+{
+    var contacto = await context.ContactoUsuarios.FindAsync(idContacto);
+    if (contacto == null)
+    {
+        return Results.NotFound(new { codigo = 404, mensaje = "No se encontró el contacto." });
+    }
+    try
+    {
+        contacto.Nombre = contactousuario.Nombre;
+        contacto.PrimerApellido = contactousuario.PrimerApellido;
+        contacto.SegundoApellido = contactousuario.SegundoApellido;
+        contacto.Facebook = contactousuario.Facebook;
+        contacto.Instagram = contactousuario.Instagram;
+        contacto.Twitter = contactousuario.Twitter;
+
+        context.ContactoUsuarios.Update(contacto);
+        await context.SaveChangesAsync();
+        return Results.NoContent();
+    }
+    catch (Exception exc)
+    {
+        return Results.Json(new { codigo = 500, mensaje = exc.Message },
+                            statusCode: StatusCodes.Status500InternalServerError);
+    }
+});
+
+//Actualizar la información de un telefono
+app.MapPut("/telefono/{idTelefono}", async (int idTelefono, Telefono telefono, Tiusr4plMohisatarea4Context context) =>
+{
+    var telefonoID = await context.Telefonos.FindAsync(idTelefono);
+    if (telefonoID == null)
+    {
+        return Results.NotFound(new { codigo = 404, mensaje = "No se encontró el telefono." });
+    }
+    try
+    {
+        if (!MiniValidator.TryValidate(telefono, out var errorTelefono))
+        {
+            return Results.BadRequest(new { id = 400, mensaje = "Datos incorrectos", errores = errorTelefono });
+        }
+        if (await context.Telefonos.AnyAsync(c => c.NumeroTelefono == telefono.NumeroTelefono))
+        {
+            return Results.Conflict(new { codigo = 409, mensaje = "Ya existe el telefono." });
+        }
+        else
+        {
+            telefonoID.ContactoId = telefono.ContactoId;
+            telefonoID.NumeroTelefono = telefono.NumeroTelefono;
+            context.Telefonos.Update(telefonoID);
+            await context.SaveChangesAsync();
+            return Results.NoContent();
+        }
+    }
+    catch (Exception exc)
+    {
+        return Results.Json(new { codigo = 500, mensaje = exc.Message },
+                            statusCode: StatusCodes.Status500InternalServerError);
+    }
+});
+
+//Actualizar la información de un contacto
+app.MapPut("/correo/{idCorreo}", async (int idCorreo, Correo correo, Tiusr4plMohisatarea4Context context) =>
+{
+    var correoID = await context.Correos.FindAsync(idCorreo);
+    if (correoID == null)
+    {
+        return Results.NotFound(new { codigo = 404, mensaje = "No se encontró el correo." });
+    }
+    try
+    {
+        if (!MiniValidator.TryValidate(correo, out var errorTelefono))
+        {
+            return Results.BadRequest(new { id = 400, mensaje = "Datos incorrectos", errores = errorTelefono });
+        }
+        if (await context.Correos.AnyAsync(c => c.CorreoElectronico == correo.CorreoElectronico))
+        {
+            return Results.Conflict(new { codigo = 409, mensaje = "Ya existe el correo." });
+        }
+        else
+        {
+            correoID.ContactoId = correo.ContactoId;
+            correoID.CorreoElectronico = correo.CorreoElectronico;
+            context.Correos.Update(correoID);
+            await context.SaveChangesAsync();
+            return Results.NoContent();
+        }
+    }
+    catch (Exception exc)
+    {
+        return Results.Json(new { codigo = 500, mensaje = exc.Message },
+                            statusCode: StatusCodes.Status500InternalServerError);
     }
 });
 
