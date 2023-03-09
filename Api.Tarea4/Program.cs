@@ -265,6 +265,8 @@ app.MapGet("contactos/{id}", async ([FromHeader] string token, [FromHeader] stri
     }
 });
 
+/*No listo*/
+
 /*Contactos*/
 app.MapPost("/registroContacto", async (ContactoUsuario Contacto, Tiusr4plMohisatarea4Context context) =>
 {
