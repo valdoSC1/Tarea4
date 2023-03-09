@@ -1,5 +1,7 @@
+using API.DataAccess;
 using API.DataAccess.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Data.SqlClient;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,6 +41,29 @@ app.MapGet("/weatherforecast", () =>
     return forecast;
 })
 .WithName("GetWeatherForecast");
+
+//Verbo get para consultar servicios
+app.MapGet("/servicio", async (Tiusr4plMohisatarea4Context context) =>
+{
+    try
+    {
+        DatosSQL cadx = new DatosSQL();
+
+        List<SqlParameter> lstParametros = new List<SqlParameter>();
+
+        lstParametros.Add(new SqlParameter("@idUsuario", "305380744"));
+        lstParametros.Add(new SqlParameter("@idContacto", 1));
+
+        cadx.ExecuteSPWithDT("SP_ConsultarContactos", lstParametros);
+
+        return Results.Ok(await context.Estados.ToListAsync());
+    }
+    catch (Exception exc)
+    {
+        return Results.Json(new { codigo = 500, mensaje = exc.Message },
+            statusCode: StatusCodes.Status500InternalServerError);
+    }
+});
 
 app.Run();
 
