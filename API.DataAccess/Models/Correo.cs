@@ -8,7 +8,7 @@ namespace API.DataAccess.Models;
 public partial class Correo
 {
     [JsonIgnore]
-    public int? CorreoId { get; set; }
+    public int CorreoId { get; set; }
 
     [Required(ErrorMessage = "El id del contacto es requerido")]
     public int? ContactoId { get; set; }

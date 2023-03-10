@@ -7,6 +7,8 @@ namespace API.DataAccess.Models;
 
 public partial class Estado
 {
+    [Required(ErrorMessage = "La alerta es requerida")]
+    [Range(0, 1, ErrorMessage = "Debe indicar un valor válido para la estado")]
     public int? EstadoId { get; set; }
 
     [Required(AllowEmptyStrings = false, ErrorMessage = "El nombre del estado es requerido")]

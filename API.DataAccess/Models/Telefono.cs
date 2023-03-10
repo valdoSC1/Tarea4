@@ -8,7 +8,7 @@ namespace API.DataAccess.Models;
 public partial class Telefono
 {
     [JsonIgnore]
-    public int? TelefonoId { get; set; }
+    public int TelefonoId { get; set; }
 
     [Required(ErrorMessage = "El id del contacto es requerido")]
     public int? ContactoId { get; set; }
